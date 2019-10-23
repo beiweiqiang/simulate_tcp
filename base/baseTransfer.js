@@ -1,5 +1,6 @@
 /**
- * { data, receiver, nak, ack }
+ * packet
+ * { data, receiver, nak, ack, seqNum }
  */
 
 export default class BaseTransfer {
@@ -13,10 +14,11 @@ export default class BaseTransfer {
 
   rdt_send(data) {}
 
-  _make_pkt(data, receiver) {
+  _make_pkt(data, receiver, seqNum) {
     return {
       data,
       receiver,
+      seqNum,
     };
   }
 
@@ -39,17 +41,19 @@ export default class BaseTransfer {
     return !!ack;
   }
 
-  _make_nak_pkt(receiver) {
+  _make_nak_pkt(receiver, seqNum) {
     return {
       nak: true,
       receiver,
+      seqNum,
     };
   }
 
-  _make_ack_pkt(receiver) {
+  _make_ack_pkt(receiver, seqNum) {
     return {
       ack: true,
       receiver,
+      seqNum,
     };
   }
 

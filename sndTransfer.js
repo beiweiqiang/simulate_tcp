@@ -2,14 +2,17 @@ import Network from './network';
 import RcvTransfer from './rcvTransfer';
 import BaseTransfer from './base/baseTransfer';
 
-const STATE_WAITING_CALL = 'state_waiting_call';
-const STATE_WAITING_ACK_NAK = 'state_waiting_ack_nak';
+const STATE_WAITING_CALL_0 = 'state_waiting_call_0';
+const STATE_WAITING_CALL_1 = 'state_waiting_call_1';
+const STATE_WAITING_ACK_NAK_0 = 'state_waiting_ack_nak_0';
+const STATE_WAITING_ACK_NAK_1 = 'state_waiting_ack_nak_1';
 
 export default class SndTransfer extends BaseTransfer {
   constructor() {
     super();
 
-    this._currentState = STATE_WAITING_CALL;
+    this._currentState = STATE_WAITING_CALL_0;
+    this._cachedData = null;
   }
 
   static _instance = null;
@@ -26,45 +29,85 @@ export default class SndTransfer extends BaseTransfer {
    */
   rdt_send(data) {
     console.log('snd send data: ', data);
+    this._cachedData = data;
 
-    if (this._currentState === STATE_WAITING_CALL) {
-      const packet = this._make_pkt(data, RcvTransfer.getInstance());
-
-      Promise.resolve().then(() => {
-        Network.udt_send(packet);
-      });
-
-      this._switchState(STATE_WAITING_ACK_NAK);
-    } else {
-      console.error('snd transfer, in busy');
+    switch (this._currentState) {
+      case STATE_WAITING_CALL_0: {
+        this._sendDataToRcv(data, 0);
+        this._switchState(STATE_WAITING_ACK_NAK_0);
+        break;
+      }
+      case STATE_WAITING_CALL_1: {
+        this._sendDataToRcv(data, 1);
+        this._switchState(STATE_WAITING_ACK_NAK_1);
+        break;
+      }
+      default:
+        console.error('snd is waiting for ack/nak');
+        break;
     }
+
+    console.log('current state: ', this._currentState);
 
   }
 
   rdt_rcv(packet) {
-    if (this._currentState === STATE_WAITING_ACK_NAK) {
+    this._console(packet, 55);
+
+    if (
+      this._currentState === STATE_WAITING_ACK_NAK_0 ||
+      this._currentState === STATE_WAITING_ACK_NAK_1
+    ) {
 
       if (this._isCorrupt(packet)) {
         console.error('snd receive pkt: corrupt');
-
-      } else {
-        if (this._isAck(packet)) {
-          console.log('snd isAck');
-          // const d = this._extract(packet);
-          // this._deliver_data(d);
-
-        } else if (this._isNak(packet)) {
-          console.error('snd isNak');
-
-        } else {
-          console.error('snd receive pkt: no ack/nak');
+        // 如果受损了, 重新发一次
+        switch (this._currentState) {
+          case STATE_WAITING_ACK_NAK_0:
+            console.log('重发, data: ', this._cachedData, 'seq: ', 0);
+            this._sendDataToRcv(this._cachedData, 0);
+            break;
+          case STATE_WAITING_ACK_NAK_1:
+            console.log('重发, data: ', this._cachedData, 'seq: ', 1);
+            this._sendDataToRcv(this._cachedData, 1);
+            break;
         }
 
+      } else {
+
+        switch (this._currentState) {
+          case STATE_WAITING_ACK_NAK_0: {
+
+            if (this._isNak(packet)) {
+              console.log('重发, data: ', this._cachedData, 'seq: ', 0);
+              this._sendDataToRcv(this._cachedData, 0);
+            }
+            if (this._isAck(packet)) {
+              this._switchState(STATE_WAITING_CALL_1);
+            }
+
+            break;
+          }
+          case STATE_WAITING_ACK_NAK_1: {
+
+            if (this._isNak(packet)) {
+              console.log('重发, data: ', this._cachedData, 'seq: ', 1);
+              this._sendDataToRcv(this._cachedData, 1);
+            }
+            if (this._isAck(packet)) {
+              this._switchState(STATE_WAITING_CALL_0);
+            }
+
+            break;
+          }
+        }
       }
 
-      this._switchState(STATE_WAITING_CALL);
-
+    } else {
+      // 处在不能接收 pkt 的状态
+      console.error('snd state cannot receive pkt: ', this._currentState);
     }
+
   }
 
   /**
@@ -77,6 +120,19 @@ export default class SndTransfer extends BaseTransfer {
   _deliver_data(data) {
     console.log(`snd ${(new Date()).toString().substring(16, 24)} ${JSON.stringify(data)}`);
   }
+
+  _sendDataToRcv(data, seq) {
+    const pkt = this._make_pkt(data, RcvTransfer.getInstance(), seq);
+    Promise.resolve().then(() => {
+      Network.udt_send(pkt);
+    });
+  }
+
+  _console(pkt, line) {
+    const { receiver, ...rest } = pkt;
+    console.log(`sndTransfer: ${line} -> `, rest);
+  }
+
 
 }
 
