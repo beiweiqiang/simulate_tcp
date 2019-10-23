@@ -4,8 +4,8 @@ import BaseTransfer from './base/baseTransfer';
 
 const STATE_WAITING_CALL_0 = 'state_waiting_call_0';
 const STATE_WAITING_CALL_1 = 'state_waiting_call_1';
-const STATE_WAITING_ACK_NAK_0 = 'state_waiting_ack_nak_0';
-const STATE_WAITING_ACK_NAK_1 = 'state_waiting_ack_nak_1';
+const STATE_WAITING_ACK_0 = 'state_waiting_ack_0';
+const STATE_WAITING_ACK_1 = 'state_waiting_ack_1';
 
 export default class SndTransfer extends BaseTransfer {
   constructor() {
@@ -34,12 +34,12 @@ export default class SndTransfer extends BaseTransfer {
     switch (this._currentState) {
       case STATE_WAITING_CALL_0: {
         this._sendDataToRcv(data, 0);
-        this._switchState(STATE_WAITING_ACK_NAK_0);
+        this._switchState(STATE_WAITING_ACK_0);
         break;
       }
       case STATE_WAITING_CALL_1: {
         this._sendDataToRcv(data, 1);
-        this._switchState(STATE_WAITING_ACK_NAK_1);
+        this._switchState(STATE_WAITING_ACK_1);
         break;
       }
       default:
@@ -55,19 +55,19 @@ export default class SndTransfer extends BaseTransfer {
     this._console(packet, 55);
 
     if (
-      this._currentState === STATE_WAITING_ACK_NAK_0 ||
-      this._currentState === STATE_WAITING_ACK_NAK_1
+      this._currentState === STATE_WAITING_ACK_0 ||
+      this._currentState === STATE_WAITING_ACK_1
     ) {
 
       if (this._isCorrupt(packet)) {
         console.error('snd receive pkt: corrupt');
         // 如果受损了, 重新发一次
         switch (this._currentState) {
-          case STATE_WAITING_ACK_NAK_0:
+          case STATE_WAITING_ACK_0:
             console.log('重发, data: ', this._cachedData, 'seq: ', 0);
             this._sendDataToRcv(this._cachedData, 0);
             break;
-          case STATE_WAITING_ACK_NAK_1:
+          case STATE_WAITING_ACK_1:
             console.log('重发, data: ', this._cachedData, 'seq: ', 1);
             this._sendDataToRcv(this._cachedData, 1);
             break;
@@ -76,26 +76,30 @@ export default class SndTransfer extends BaseTransfer {
       } else {
 
         switch (this._currentState) {
-          case STATE_WAITING_ACK_NAK_0: {
+          case STATE_WAITING_ACK_0: {
 
-            if (this._isNak(packet)) {
-              console.log('重发, data: ', this._cachedData, 'seq: ', 0);
-              this._sendDataToRcv(this._cachedData, 0);
-            }
-            if (this._isAck(packet)) {
-              this._switchState(STATE_WAITING_CALL_1);
+            switch (this._extract_seq_num(packet)) {
+              case 0:
+                this._switchState(STATE_WAITING_CALL_1);
+                break;
+              case 1:
+                console.log('重发, data: ', this._cachedData, 'seq: ', 0);
+                this._sendDataToRcv(this._cachedData, 0);
+                break;
             }
 
             break;
           }
-          case STATE_WAITING_ACK_NAK_1: {
+          case STATE_WAITING_ACK_1: {
 
-            if (this._isNak(packet)) {
-              console.log('重发, data: ', this._cachedData, 'seq: ', 1);
-              this._sendDataToRcv(this._cachedData, 1);
-            }
-            if (this._isAck(packet)) {
-              this._switchState(STATE_WAITING_CALL_0);
+            switch (this._extract_seq_num(packet)) {
+              case 0:
+                console.log('重发, data: ', this._cachedData, 'seq: ', 1);
+                this._sendDataToRcv(this._cachedData, 1);
+                break;
+              case 1:
+                this._switchState(STATE_WAITING_CALL_0);
+                break;
             }
 
             break;
@@ -133,6 +137,9 @@ export default class SndTransfer extends BaseTransfer {
     console.log(`sndTransfer: ${line} -> `, rest);
   }
 
+  _extract_seq_num(pkt) {
+    return pkt && pkt.seqNum;
+  }
 
 }
 

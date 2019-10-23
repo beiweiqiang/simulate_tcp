@@ -31,24 +31,6 @@ export default class BaseTransfer {
     return !!corrupt;
   }
 
-  _isNak(pkt) {
-    const { nak } = pkt;
-    return !!nak;
-  }
-
-  _isAck(pkt) {
-    const { ack } = pkt;
-    return !!ack;
-  }
-
-  _make_nak_pkt(receiver, seqNum) {
-    return {
-      nak: true,
-      receiver,
-      seqNum,
-    };
-  }
-
   _make_ack_pkt(receiver, seqNum) {
     return {
       ack: true,

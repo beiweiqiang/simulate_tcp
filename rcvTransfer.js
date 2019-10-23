@@ -31,10 +31,10 @@ export default class RcvTransfer extends BaseTransfer{
       // 接收到的 pkt 受损
       switch (this._currentState) {
         case STATE_WAITING_CALL_0:
-          sndPkt = this._make_nak_pkt(SndTransfer.getInstance(), 0);
+          sndPkt = this._make_ack_pkt(SndTransfer.getInstance(), 1);
           break;
         case STATE_WAITING_CALL_1:
-          sndPkt = this._make_nak_pkt(SndTransfer.getInstance(), 1);
+          sndPkt = this._make_ack_pkt(SndTransfer.getInstance(), 0);
           break;
       }
 
