@@ -8,8 +8,16 @@ export default class Network {
       corrupt: Math.random() > 0.8,
     });
 
-    console.log('network corrupt: ', pkt.corrupt);
+    if (pkt.corrupt) {
+      console.error('network: pkt corrupt');
+    }
 
-    receiver.rdt_rcv(pkt);
+    if (Math.random() > 0.8) {
+      Promise.resolve().then(() => {
+        receiver.rdt_rcv(pkt);
+      });
+    } else {
+      console.error('network: 抛弃 pkt');
+    }
   }
 }

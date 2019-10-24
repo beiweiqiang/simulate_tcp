@@ -23,7 +23,9 @@ export default class RcvTransfer extends BaseTransfer{
   }
 
   rdt_rcv(packet) {
-    this._console(packet, 26);
+    const { receiver, ...rest } = packet;
+    console.log(`! rcv 接收到 pkt, `, rest);
+
     let sndPkt = null;
 
     if (this._isCorrupt(packet)) {
@@ -89,7 +91,7 @@ export default class RcvTransfer extends BaseTransfer{
   }
 
   _deliver_data(data) {
-    console.log(`rcv ${(new Date()).toString().substring(16, 24)} ${JSON.stringify(data)}`);
+    console.log(`${(new Date()).toString().substring(16, 24)} rcv deliver data`, data);
   }
 
   _extract_seq_num(pkt) {
@@ -99,11 +101,6 @@ export default class RcvTransfer extends BaseTransfer{
   _extract_deliver(packet) {
     const d = this._extract(packet);
     this._deliver_data(d);
-  }
-
-  _console(pkt, line) {
-    const { receiver, ...rest } = pkt;
-    console.log(`rcvTransfer: ${line} -> `, rest);
   }
 
 }
